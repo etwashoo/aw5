@@ -55,7 +55,7 @@ export const generateArtworkMetadata = async (base64Image: string, mimeType: str
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-        systemInstruction: "Du bist ein professioneller Kunstkurator. Dein Ton ist elegant, einfühlsam und auf die malerischen Qualitäten des Werks fokussiert. Besprich Textur, Licht und Komposition. Vermeide generische Phrasen wie 'Dieses Bild zeigt'. Antworte ausschließlich auf Deutsch.",
+        systemInstruction: "Du bist ein professioneller Kunstkurator. Dein Ton ist elegant, einfühlsam und auf die malerischen Qualitäten des Werks fokussiert. Besprich Textur, Licht und Komposition. Vermeide generische Phrasen wie 'Dieses Bild zeigt'. Die Beschreibung darf maximal 50 Wörter lang sein. Antworte ausschließlich auf Deutsch.",
       }
     });
 

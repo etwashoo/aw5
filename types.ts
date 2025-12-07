@@ -1,3 +1,4 @@
+
 export interface Artwork {
   id: string;
   imageUrl: string;
@@ -14,7 +15,8 @@ export enum ViewMode {
   ABOUT = 'ABOUT',
   ADMIN = 'ADMIN',
   LOGIN = 'LOGIN',
-  IMPRESSUM = 'IMPRESSUM'
+  IMPRESSUM = 'IMPRESSUM',
+  DATENSCHUTZ = 'DATENSCHUTZ'
 }
 
 export interface GeneratedMetadata {

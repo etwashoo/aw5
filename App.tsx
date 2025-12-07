@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Gallery } from './components/Gallery';
@@ -5,6 +6,7 @@ import { AdminPanel } from './components/AdminPanel';
 import { Welcome } from './components/Welcome';
 import { About } from './components/About';
 import { Impressum } from './components/Impressum';
+import { Datenschutz } from './components/Datenschutz';
 import { ViewMode, Artwork, RepoConfig, ArtistProfile } from './types';
 import { fetchGalleryFromGitHub, fetchProfile } from './services/githubService';
 
@@ -125,6 +127,10 @@ const App: React.FC = () => {
              <Impressum />
         )}
 
+        {viewMode === ViewMode.DATENSCHUTZ && (
+             <Datenschutz />
+        )}
+
         {viewMode === ViewMode.GALLERY && (
           <>
              {!isConfigured ? (
@@ -198,15 +204,19 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="bg-stone-900 text-stone-400 py-12 border-t border-stone-800">
+      <footer className="bg-stone-100 text-stone-600 py-12 border-t border-stone-200">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-sm tracking-wide">© {new Date().getFullYear()} Anna Maria Wilkemeyer.</p>
           <div className="mt-8 space-x-6 flex justify-center items-center">
-             <button onClick={() => setViewMode(ViewMode.IMPRESSUM)} className="text-xs text-stone-500 hover:text-stone-300 uppercase tracking-widest">
+             <button onClick={() => setViewMode(ViewMode.IMPRESSUM)} className="text-xs text-stone-500 hover:text-stone-900 uppercase tracking-widest transition-colors">
                Impressum
              </button>
-             <span className="text-stone-700">|</span>
-             <button onClick={() => setViewMode(ViewMode.LOGIN)} className="text-xs text-stone-500 hover:text-stone-300 uppercase tracking-widest">
+             <span className="text-stone-300">|</span>
+             <button onClick={() => setViewMode(ViewMode.DATENSCHUTZ)} className="text-xs text-stone-500 hover:text-stone-900 uppercase tracking-widest transition-colors">
+               Datenschutz
+             </button>
+             <span className="text-stone-300">|</span>
+             <button onClick={() => setViewMode(ViewMode.LOGIN)} className="text-xs text-stone-500 hover:text-stone-900 uppercase tracking-widest transition-colors">
                Künstler-Login
              </button>
           </div>
