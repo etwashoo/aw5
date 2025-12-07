@@ -24,13 +24,13 @@ export const generateArtworkMetadata = async (base64Image: string, mimeType: str
   const responseSchema: Schema = {
     type: Type.OBJECT,
     properties: {
-      title: { type: Type.STRING, description: "A creative, artistic title for the image." },
-      description: { type: Type.STRING, description: "A sophisticated, 2-3 sentence description suitable for an art gallery placard." },
-      medium: { type: Type.STRING, description: "The estimated artistic medium (e.g., Oil on Canvas, Digital Photography, Charcoal)." },
+      title: { type: Type.STRING, description: "A creative, evocative title for the painting." },
+      description: { type: Type.STRING, description: "A sophisticated curatorial description focusing on brushwork, color palette, and emotional resonance." },
+      medium: { type: Type.STRING, description: "The painting medium (e.g., Oil on Canvas, Acrylic on Wood, Watercolor, Gouache)." },
       tags: { 
         type: Type.ARRAY, 
         items: { type: Type.STRING },
-        description: "5 relevant keywords describing the style and content." 
+        description: "5 relevant keywords describing the artistic style, technique, and subject." 
       }
     },
     required: ["title", "description", "medium", "tags"],
@@ -48,14 +48,14 @@ export const generateArtworkMetadata = async (base64Image: string, mimeType: str
             }
           },
           {
-            text: "You are an expert art curator. Analyze this artwork and generate metadata for the portfolio website."
+            text: "You are an expert art critic and curator specializing in fine art painting. Analyze this artwork and generate metadata for the portfolio website."
           }
         ]
       },
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-        systemInstruction: "You are a professional art curator. Your tone is elegant, insightful, and concise. Avoid generic phrases like 'This image shows'. Focus on emotions, lighting, and composition.",
+        systemInstruction: "You are a professional fine art curator. Your tone is elegant, insightful, and focused on the painterly qualities of the work. Discuss texture, lighting, and composition. Avoid generic phrases like 'This image shows'.",
       }
     });
 

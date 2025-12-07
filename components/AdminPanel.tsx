@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Artwork, RepoConfig } from '../types';
+import { Artwork, RepoConfig, ArtistProfile } from '../types';
 import { generateArtworkMetadata, fileToGenerativePart } from '../services/geminiService';
-import { uploadImageToGitHub, updateGalleryManifest, verifyRepoAccess, getRepoDetails, deleteArtworkFromGitHub } from '../services/githubService';
+import { uploadImageToGitHub, updateGalleryManifest, verifyRepoAccess, getRepoDetails, deleteArtworkFromGitHub, updateProfile } from '../services/githubService';
 
 interface AdminPanelProps {
   artworks: Artwork[];
   repoConfig: RepoConfig;
+  currentProfile: ArtistProfile;
   onConfigChange: (config: RepoConfig) => void;
   onRefreshData: () => void;
   onLogout: () => void;
@@ -14,25 +15,38 @@ interface AdminPanelProps {
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
   artworks, 
   repoConfig, 
+  currentProfile,
   onConfigChange, 
   onRefreshData,
   onLogout 
 }) => {
-  const [activeTab, setActiveTab] = useState<'upload' | 'settings'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'profile' | 'settings'>('upload');
+  
+  // Upload State
   const [isUploading, setIsUploading] = useState(false);
   const [isAnalysing, setIsAnalysing] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
-  
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Form State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [medium, setMedium] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // Profile State
+  const [welcomeMsg, setWelcomeMsg] = useState(currentProfile.welcomeMessage);
+  const [featuredPreview, setFeaturedPreview] = useState<string>(currentProfile.featuredImageUrl);
+  const [featuredFile, setFeaturedFile] = useState<File | null>(null);
+  const featuredInputRef = useRef<HTMLInputElement>(null);
+
+  const [aboutMsg, setAboutMsg] = useState(currentProfile.aboutText || '');
+  const [aboutPreview, setAboutPreview] = useState<string>(currentProfile.aboutImageUrl || '');
+  const [aboutFile, setAboutFile] = useState<File | null>(null);
+  const aboutInputRef = useRef<HTMLInputElement>(null);
+
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Settings State
   const [localConfig, setLocalConfig] = useState<RepoConfig>(repoConfig);
@@ -44,20 +58,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
-    // If we don't have a token or repo configured, force the settings tab
     if (!repoConfig.owner || !repoConfig.repo || !repoConfig.token) {
       setActiveTab('settings');
     }
   }, [repoConfig]);
 
+  // --- Handlers for Upload ---
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       setFile(selectedFile);
       const url = URL.createObjectURL(selectedFile);
       setPreviewUrl(url);
-      
-      // Reset fields
       setTitle('');
       setDescription('');
       setMedium('');
@@ -68,14 +80,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleAnalyze = async () => {
     if (!file || !previewUrl) return;
-
     setIsAnalysing(true);
     setError(null);
-
     try {
       const base64Data = await fileToGenerativePart(file);
       const metadata = await generateArtworkMetadata(base64Data, file.type);
-      
       setTitle(metadata.title);
       setDescription(metadata.description);
       setMedium(metadata.medium);
@@ -97,16 +106,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         setError("GitHub Token is missing. Please check Settings.");
         return;
     }
-
     setIsUploading(true);
     setUploadStatus('Preparing...');
-    
     try {
         const base64Data = await fileToGenerativePart(file);
-        
-        setUploadStatus('Uploading image to GitHub...');
+        setUploadStatus('Uploading painting to GitHub...');
         const imageUrl = await uploadImageToGitHub(file, base64Data, repoConfig);
-        
         setUploadStatus('Updating gallery manifest...');
         const newArtwork: Artwork = {
             id: crypto.randomUUID(),
@@ -117,17 +122,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             tags,
             createdAt: Date.now()
         };
-        
         await updateGalleryManifest(newArtwork, repoConfig);
-        
         setUploadStatus('Success!');
         onRefreshData();
         resetForm();
-        setTimeout(() => {
-            setIsUploading(false);
-            setUploadStatus('');
-        }, 1500);
-
+        setTimeout(() => { setIsUploading(false); setUploadStatus(''); }, 1500);
     } catch (err: any) {
         console.error(err);
         setError(err.message || "Failed to publish artwork");
@@ -140,11 +139,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       if (!window.confirm(`Are you sure you want to delete "${art.title}"? This cannot be undone.`)) {
           return;
       }
-      
       setDeletingId(art.id);
       try {
           await deleteArtworkFromGitHub(art, repoConfig);
-          onRefreshData(); // Reload list
+          onRefreshData();
       } catch (err: any) {
           console.error(err);
           alert("Failed to delete artwork: " + (err.message || "Unknown error"));
@@ -163,6 +161,57 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // --- Handlers for Profile ---
+  const handleFeaturedImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          setFeaturedFile(file);
+          setFeaturedPreview(URL.createObjectURL(file));
+      }
+  };
+
+  const handleAboutImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          setAboutFile(file);
+          setAboutPreview(URL.createObjectURL(file));
+      }
+  };
+
+  const handleSaveProfile = async () => {
+      setIsSavingProfile(true);
+      try {
+          let featuredUrl = currentProfile.featuredImageUrl;
+          let aboutUrl = currentProfile.aboutImageUrl || '';
+          
+          if (featuredFile) {
+              const base64 = await fileToGenerativePart(featuredFile);
+              featuredUrl = await uploadImageToGitHub(featuredFile, base64, repoConfig);
+          }
+
+          if (aboutFile) {
+              const base64 = await fileToGenerativePart(aboutFile);
+              aboutUrl = await uploadImageToGitHub(aboutFile, base64, repoConfig);
+          }
+
+          const newProfile: ArtistProfile = {
+              welcomeMessage: welcomeMsg,
+              featuredImageUrl: featuredUrl,
+              aboutText: aboutMsg,
+              aboutImageUrl: aboutUrl
+          };
+
+          await updateProfile(newProfile, repoConfig);
+          onRefreshData(); 
+          alert("Profile updated successfully!");
+      } catch (e: any) {
+          alert("Failed to update profile: " + e.message);
+      } finally {
+          setIsSavingProfile(false);
+      }
+  };
+
+  // --- Handlers for Settings ---
   const saveSettings = async () => {
       setIsVerifying(true);
       setError(null);
@@ -171,19 +220,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       try {
           const isValid = await verifyRepoAccess(localConfig);
           if (isValid) {
-              // Check visibility
               const details = await getRepoDetails(localConfig);
               if (details && details.private) {
-                setRepoWarning("Warning: This repository is set to PRIVATE. Images uploaded here will NOT be visible on the public website. Please change the repository visibility to Public in GitHub Settings.");
+                setRepoWarning("Warning: This repository is set to PRIVATE. Images will NOT be visible publicly.");
               }
-
               onConfigChange(localConfig);
               setConfigSuccess(true);
               if (!details?.private) {
                 setTimeout(() => setActiveTab('upload'), 1000);
               }
           } else {
-              setError("Could not access repository. Check Owner, Repo, and Token permissions.");
+              setError("Could not access repository. Check Owner, Repo, and Token.");
           }
       } catch (e) {
           setError("Verification failed.");
@@ -196,9 +243,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-stone-200 pb-4">
         <div className="mb-4 md:mb-0">
-           <h2 className="text-2xl font-serif text-stone-900">Curator Dashboard</h2>
+           <h2 className="text-2xl font-serif text-stone-900">Artist Studio</h2>
            <p className="text-stone-500 text-sm mt-1">
-               {repoConfig.owner && repoConfig.repo ? `Connected to ${repoConfig.owner}/${repoConfig.repo}` : 'Not connected to a repository'}
+               {repoConfig.owner && repoConfig.repo ? `Connected to ${repoConfig.owner}/${repoConfig.repo}` : 'Not connected'}
            </p>
         </div>
         <div className="flex gap-4">
@@ -206,7 +253,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 onClick={() => setActiveTab('upload')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'upload' ? 'bg-stone-100 text-stone-900' : 'text-stone-500 hover:text-stone-900'}`}
             >
-                Upload
+                Upload Painting
+            </button>
+            <button 
+                onClick={() => setActiveTab('profile')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'profile' ? 'bg-stone-100 text-stone-900' : 'text-stone-500 hover:text-stone-900'}`}
+            >
+                Edit Profile
             </button>
             <button 
                 onClick={() => setActiveTab('settings')}
@@ -227,101 +280,125 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {activeTab === 'settings' && (
           <div className="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-sm border border-stone-200">
               <h3 className="text-xl font-medium text-stone-900 mb-6">Repository Configuration</h3>
-              <p className="text-stone-500 text-sm mb-6 bg-stone-50 p-4 rounded">
-                  Configure the GitHub repository where your gallery data and images will be stored. 
-                  The repository must be <strong>Public</strong> for images to be visible on the website.
-              </p>
-              
               <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-stone-700 mb-1">GitHub Username</label>
-                        <input 
-                            type="text" 
-                            value={localConfig.owner}
-                            onChange={(e) => setLocalConfig({...localConfig, owner: e.target.value})}
-                            className="w-full px-4 py-2 border border-stone-300 rounded outline-none focus:border-stone-500"
-                            placeholder="e.g., octocat"
-                        />
+                        <input type="text" value={localConfig.owner} onChange={(e) => setLocalConfig({...localConfig, owner: e.target.value})} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-stone-700 mb-1">Repository Name</label>
-                        <input 
-                            type="text" 
-                            value={localConfig.repo}
-                            onChange={(e) => setLocalConfig({...localConfig, repo: e.target.value})}
-                            className="w-full px-4 py-2 border border-stone-300 rounded outline-none focus:border-stone-500"
-                            placeholder="e.g., my-art-gallery"
-                        />
+                        <input type="text" value={localConfig.repo} onChange={(e) => setLocalConfig({...localConfig, repo: e.target.value})} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" />
                       </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-stone-700 mb-1">Branch</label>
-                    <input 
-                        type="text" 
-                        value={localConfig.branch}
-                        onChange={(e) => setLocalConfig({...localConfig, branch: e.target.value})}
-                        className="w-full px-4 py-2 border border-stone-300 rounded outline-none focus:border-stone-500"
-                        placeholder="main"
-                    />
+                    <input type="text" value={localConfig.branch} onChange={(e) => setLocalConfig({...localConfig, branch: e.target.value})} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" placeholder="main"/>
                   </div>
-                  
                   <div className="pt-2">
-                    <label className="block text-sm font-medium text-stone-700 mb-1">GitHub Personal Access Token (Classic)</label>
-                    <input 
-                        type="password" 
-                        value={localConfig.token || ''}
-                        onChange={(e) => setLocalConfig({...localConfig, token: e.target.value})}
-                        className="w-full px-4 py-2 border border-stone-300 rounded outline-none focus:border-stone-500"
-                        placeholder="ghp_..."
-                    />
-                    <p className="text-xs text-stone-500 mt-1">
-                        Token must have <code>repo</code> scope.
-                    </p>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">GitHub Token (Classic)</label>
+                    <input type="password" value={localConfig.token || ''} onChange={(e) => setLocalConfig({...localConfig, token: e.target.value})} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" placeholder="ghp_..."/>
                   </div>
-
                   <div className="pt-4 mt-4 border-t border-stone-100">
-                      <button 
-                        onClick={saveSettings}
-                        disabled={isVerifying}
-                        className={`w-full py-2 rounded font-medium text-white transition-colors ${configSuccess ? 'bg-green-600' : 'bg-stone-900 hover:bg-stone-800'}`}
-                      >
+                      <button onClick={saveSettings} disabled={isVerifying} className={`w-full py-2 rounded font-medium text-white transition-colors ${configSuccess ? 'bg-green-600' : 'bg-stone-900 hover:bg-stone-800'}`}>
                           {isVerifying ? 'Verifying...' : configSuccess ? 'Connected!' : 'Save Configuration'}
                       </button>
                       {error && <p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
-                      {repoWarning && (
-                        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
-                           <strong>Attention:</strong> {repoWarning}
-                        </div>
-                      )}
+                      {repoWarning && <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">{repoWarning}</div>}
                   </div>
-                  
                   {configSuccess && (
                      <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded">
-                        <h4 className="text-blue-900 font-medium mb-2">🚀 Make Site Public</h4>
-                        <p className="text-sm text-blue-800 mb-3">
-                            To make the gallery visible to visitors who are not logged in, you must manually update 
-                            the <code>App.tsx</code> file with your repository details.
-                        </p>
-                        <div className="bg-white p-3 rounded border border-blue-100 font-mono text-xs text-stone-600 overflow-x-auto">
-                            const PUBLIC_REPO_CONFIG: RepoConfig = &#123;<br/>
-                            &nbsp;&nbsp;owner: '{localConfig.owner}',<br/>
-                            &nbsp;&nbsp;repo: '{localConfig.repo}',<br/>
-                            &nbsp;&nbsp;branch: '{localConfig.branch}',<br/>
-                            &#125;;
-                        </div>
-                        <p className="text-xs text-blue-700 mt-2">
-                            Copy the code above and paste it into the <code>PUBLIC_REPO_CONFIG</code> section at the top of <strong>App.tsx</strong>.
-                        </p>
+                        <p className="text-sm text-blue-800">Don't forget to update PUBLIC_REPO_CONFIG in App.tsx for public access!</p>
                      </div>
                   )}
+                  <div className="mt-4 p-4 bg-stone-100 border border-stone-200 rounded text-stone-600 text-xs font-mono">
+                      <p className="font-bold mb-2">Make Site Public:</p>
+                      <p>const PUBLIC_REPO_CONFIG = {'{'}</p>
+                      <p className="pl-4">owner: '{localConfig.owner}',</p>
+                      <p className="pl-4">repo: '{localConfig.repo}',</p>
+                      <p className="pl-4">branch: '{localConfig.branch || 'main'}'</p>
+                      <p>{'};'}</p>
+                      <p className="mt-2 italic text-stone-500">Copy this into App.tsx</p>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {activeTab === 'profile' && (
+          <div className="max-w-4xl mx-auto space-y-8">
+              {/* Homepage Section */}
+              <div className="bg-white p-8 rounded-lg shadow-sm border border-stone-200">
+                  <h3 className="text-xl font-serif text-stone-900 mb-6 pb-2 border-b border-stone-100">Homepage Settings</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div>
+                          <label className="block text-sm font-medium text-stone-700 mb-2">Featured Painting</label>
+                          <div 
+                              className="border-2 border-dashed border-stone-300 rounded-lg p-4 cursor-pointer hover:bg-stone-50 transition-colors text-center bg-stone-50/50"
+                              onClick={() => featuredInputRef.current?.click()}
+                          >
+                              <img src={featuredPreview} alt="Featured" className="h-48 w-full object-contain mb-2" />
+                              <span className="text-xs text-stone-500">Click to change</span>
+                              <input type="file" ref={featuredInputRef} className="hidden" accept="image/*" onChange={handleFeaturedImageChange} />
+                          </div>
+                      </div>
+                      <div>
+                          <label className="block text-sm font-medium text-stone-700 mb-2">Welcome Message</label>
+                          <textarea 
+                              value={welcomeMsg}
+                              onChange={(e) => setWelcomeMsg(e.target.value)}
+                              rows={8}
+                              className="w-full px-4 py-2 border border-stone-300 rounded outline-none focus:border-stone-500"
+                          />
+                      </div>
+                  </div>
+              </div>
+
+              {/* About Page Section */}
+              <div className="bg-white p-8 rounded-lg shadow-sm border border-stone-200">
+                  <h3 className="text-xl font-serif text-stone-900 mb-6 pb-2 border-b border-stone-100">About Page Settings</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div>
+                          <label className="block text-sm font-medium text-stone-700 mb-2">Artist Portrait</label>
+                          <div 
+                              className="border-2 border-dashed border-stone-300 rounded-lg p-4 cursor-pointer hover:bg-stone-50 transition-colors text-center bg-stone-50/50"
+                              onClick={() => aboutInputRef.current?.click()}
+                          >
+                              {aboutPreview ? (
+                                <img src={aboutPreview} alt="Artist" className="h-64 w-full object-cover mb-2 grayscale" />
+                              ) : (
+                                <div className="h-64 flex items-center justify-center text-stone-400">No Image</div>
+                              )}
+                              <span className="text-xs text-stone-500">Click to upload portrait</span>
+                              <input type="file" ref={aboutInputRef} className="hidden" accept="image/*" onChange={handleAboutImageChange} />
+                          </div>
+                      </div>
+                      <div>
+                          <label className="block text-sm font-medium text-stone-700 mb-2">Artist Biography</label>
+                          <textarea 
+                              value={aboutMsg}
+                              onChange={(e) => setAboutMsg(e.target.value)}
+                              rows={12}
+                              className="w-full px-4 py-2 border border-stone-300 rounded outline-none focus:border-stone-500"
+                              placeholder="Write your biography here..."
+                          />
+                      </div>
+                  </div>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <button 
+                    onClick={handleSaveProfile}
+                    disabled={isSavingProfile}
+                    className="px-8 py-3 bg-stone-900 text-white font-medium rounded hover:bg-stone-800 disabled:opacity-50"
+                >
+                    {isSavingProfile ? 'Saving Changes...' : 'Save All Profile Changes'}
+                </button>
               </div>
           </div>
       )}
 
       {activeTab === 'upload' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Left Col: Upload & Preview */}
             <div className="space-y-6">
             <div 
                 className={`border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center transition-colors min-h-[300px] ${
@@ -332,118 +409,67 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 {previewUrl ? (
                     <div className="relative w-full h-full">
                         <img src={previewUrl} alt="Preview" className="max-h-[400px] mx-auto object-contain shadow-lg" />
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); resetForm(); }}
-                            className="absolute top-2 right-2 bg-white/80 p-2 rounded-full hover:bg-white text-stone-600 shadow-sm"
-                        >
-                            ✕
-                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); resetForm(); }} className="absolute top-2 right-2 bg-white/80 p-2 rounded-full hover:bg-white text-stone-600 shadow-sm">✕</button>
                     </div>
                 ) : (
                     <div className="space-y-4">
                         <div className="w-16 h-16 bg-stone-100 rounded-full flex items-center justify-center mx-auto text-stone-400">
-                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                             <span className="text-2xl">🎨</span>
                         </div>
                         <div>
-                            <p className="text-lg font-medium text-stone-900">Click to upload artwork</p>
+                            <p className="text-lg font-medium text-stone-900">Upload Painting</p>
                             <p className="text-sm text-stone-500">JPG, PNG up to 5MB</p>
                         </div>
                     </div>
                 )}
-                <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept="image/*" 
-                    onChange={handleFileChange}
-                />
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
             </div>
 
             {previewUrl && (
                 <button
                     onClick={handleAnalyze}
                     disabled={isAnalysing || isUploading}
-                    className="w-full py-3 bg-stone-100 text-stone-900 border border-stone-200 font-medium rounded shadow-sm hover:bg-stone-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
+                    className="w-full py-3 bg-stone-100 text-stone-900 border border-stone-200 font-medium rounded shadow-sm hover:bg-stone-200 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                    {isAnalysing ? (
-                        <>
-                            <svg className="animate-spin h-5 w-5 text-stone-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            Analysing with Gemini...
-                        </>
-                    ) : (
-                        <>
-                            <span>✨</span> Auto-Generate Metadata
-                        </>
-                    )}
+                    {isAnalysing ? 'Analyzing with Gemini...' : '✨ Auto-Generate Metadata'}
                 </button>
             )}
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
             </div>
 
-            {/* Right Col: Metadata Form */}
             <div className="bg-white p-8 rounded-lg shadow-sm border border-stone-200 relative overflow-hidden">
                 {isUploading && (
                     <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
-                         <svg className="animate-spin h-8 w-8 text-stone-900 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                          <p className="text-stone-900 font-medium">{uploadStatus}</p>
-                         <p className="text-stone-500 text-xs mt-2">Note: Public updates may take up to 5 mins to appear.</p>
                     </div>
                 )}
-
-                <h3 className="text-lg font-medium text-stone-900 mb-6">Artwork Details</h3>
+                <h3 className="text-lg font-medium text-stone-900 mb-6">Painting Details</h3>
                 <div className="space-y-5">
                     <div>
                         <label className="block text-sm font-medium text-stone-700 mb-1">Title</label>
-                        <input 
-                            type="text" 
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            className="w-full px-4 py-2 border border-stone-300 rounded focus:ring-1 focus:ring-stone-500 focus:border-stone-500 outline-none transition-shadow"
-                            placeholder="Untitled"
-                        />
+                        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" placeholder="Untitled" />
                     </div>
-                    
                     <div>
                         <label className="block text-sm font-medium text-stone-700 mb-1">Medium</label>
-                        <input 
-                            type="text" 
-                            value={medium}
-                            onChange={(e) => setMedium(e.target.value)}
-                            className="w-full px-4 py-2 border border-stone-300 rounded focus:ring-1 focus:ring-stone-500 focus:border-stone-500 outline-none transition-shadow"
-                            placeholder="e.g. Oil on Canvas"
-                        />
+                        <input type="text" value={medium} onChange={(e) => setMedium(e.target.value)} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" placeholder="e.g. Oil on Canvas" />
                     </div>
-
                     <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-1">Curatorial Description</label>
-                        <textarea 
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows={6}
-                            className="w-full px-4 py-2 border border-stone-300 rounded focus:ring-1 focus:ring-stone-500 focus:border-stone-500 outline-none transition-shadow"
-                            placeholder="Generated description will appear here..."
-                        />
+                        <label className="block text-sm font-medium text-stone-700 mb-1">Description</label>
+                        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={6} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" placeholder="Generated description will appear here..." />
                     </div>
-
                     <div>
                         <label className="block text-sm font-medium text-stone-700 mb-1">Tags</label>
                         <div className="flex flex-wrap gap-2 mb-2">
                             {tags.map((tag, idx) => (
                                 <span key={idx} className="bg-stone-100 text-stone-700 px-2 py-1 rounded text-xs flex items-center gap-1">
-                                    {tag}
-                                    <button onClick={() => setTags(tags.filter((_, i) => i !== idx))} className="hover:text-red-500">×</button>
+                                    {tag} <button onClick={() => setTags(tags.filter((_, i) => i !== idx))} className="hover:text-red-500">×</button>
                                 </span>
                             ))}
                         </div>
                     </div>
-                    
                     <div className="pt-4 border-t border-stone-100">
-                        <button 
-                            onClick={handlePublish}
-                            disabled={isUploading || !title}
-                            className="w-full py-3 bg-stone-900 text-white font-serif tracking-wide rounded hover:bg-stone-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            Publish to Gallery
+                        <button onClick={handlePublish} disabled={isUploading || !title} className="w-full py-3 bg-stone-900 text-white font-serif tracking-wide rounded hover:bg-stone-800 disabled:opacity-50">
+                            Add to Gallery
                         </button>
                     </div>
                 </div>
@@ -451,44 +477,37 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
-      {/* Existing Artworks List */}
+      {/* Existing Artworks List (only show on upload tab) */}
+      {activeTab === 'upload' && (
       <div className="mt-16">
-          <h3 className="text-xl font-serif text-stone-900 mb-6">Manage Collection ({artworks.length})</h3>
-          <p className="text-stone-500 text-sm mb-4">Hover over an image to remove it from the collection.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+          <h3 className="text-xl font-serif text-stone-900 mb-6">Collection ({artworks.length})</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {artworks.map(art => (
                   <div key={art.id} className="group relative border border-stone-200 rounded overflow-hidden">
                       <div className="aspect-square bg-stone-100 relative">
-                          <img src={art.imageUrl} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" alt={art.title} />
-                          
-                          {/* Delete Button Overlay */}
-                          <div className="absolute inset-0 bg-stone-900/0 group-hover:bg-stone-900/10 transition-colors flex items-start justify-end p-2">
-                              <button
-                                  onClick={() => handleDelete(art)}
-                                  disabled={!!deletingId}
-                                  className="bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-red-700 transform hover:scale-105 shadow-md disabled:bg-stone-400 disabled:cursor-not-allowed"
-                                  title="Delete Artwork"
-                              >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                              </button>
-                          </div>
-
-                          {/* Deleting Loading State */}
+                          <img src={art.imageUrl} className="w-full h-full object-cover opacity-90 group-hover:opacity-100" alt={art.title} />
+                          <button
+                              onClick={() => handleDelete(art)}
+                              disabled={!!deletingId}
+                              className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-md disabled:bg-stone-400"
+                              title="Delete Artwork"
+                          >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
                           {deletingId === art.id && (
                              <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center z-20">
-                                 <svg className="animate-spin h-6 w-6 text-red-600 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                  <span className="text-red-600 font-bold text-xs">DELETING...</span>
                              </div>
                           )}
                       </div>
                       <div className="p-3 bg-white">
                           <p className="font-medium text-stone-900 truncate">{art.title}</p>
-                          <p className="text-xs text-stone-500">{art.medium}</p>
                       </div>
                   </div>
               ))}
           </div>
       </div>
+      )}
     </div>
   );
 };

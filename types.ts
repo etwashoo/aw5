@@ -9,7 +9,9 @@ export interface Artwork {
 }
 
 export enum ViewMode {
+  WELCOME = 'WELCOME',
   GALLERY = 'GALLERY',
+  ABOUT = 'ABOUT',
   ADMIN = 'ADMIN',
   LOGIN = 'LOGIN'
 }
@@ -26,4 +28,11 @@ export interface RepoConfig {
   repo: string;
   branch: string;
   token?: string;
+}
+
+export interface ArtistProfile {
+  welcomeMessage: string;
+  featuredImageUrl: string;
+  aboutText: string;
+  aboutImageUrl: string;
 }
