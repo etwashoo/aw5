@@ -23,31 +23,31 @@ export const About: React.FC<AboutProps> = ({ profile }) => {
                         />
                     </div>
                     <div className="mt-4 text-center md:text-left">
-                        <p className="font-serif italic text-stone-400 text-sm">Anna Maria Wilkemeyer in studio</p>
+                        <p className="font-serif italic text-stone-400 text-sm">Anna Maria Wilkemeyer im Atelier</p>
                     </div>
                 </div>
 
                 {/* Text Column */}
                 <div className="space-y-8 pt-4">
                     <div>
-                        <h2 className="text-3xl md:text-4xl font-serif text-stone-900 mb-6">About the Artist</h2>
+                        <h2 className="text-3xl md:text-4xl font-serif text-stone-900 mb-6">Über die Künstlerin</h2>
                         <div className="w-12 h-px bg-stone-900 mb-8"></div>
                     </div>
 
                     <div className="prose prose-stone prose-lg text-stone-600 font-light leading-relaxed whitespace-pre-line">
-                        {profile.aboutText || "Artist biography not yet added."}
+                        {profile.aboutText || "Biografie noch nicht hinzugefügt."}
                     </div>
 
                     <div className="pt-8 grid grid-cols-2 gap-8 border-t border-stone-100">
                         <div>
-                            <h4 className="font-serif text-stone-900 mb-2">Focus</h4>
-                            <p className="text-sm text-stone-500 uppercase tracking-wider">Oil & Acrylic</p>
-                            <p className="text-sm text-stone-500 uppercase tracking-wider">Abstract Expressionism</p>
+                            <h4 className="font-serif text-stone-900 mb-2">Schwerpunkt</h4>
+                            <p className="text-sm text-stone-500 uppercase tracking-wider">Öl & Acryl</p>
+                            <p className="text-sm text-stone-500 uppercase tracking-wider">Abstrakter Expressionismus</p>
                         </div>
                         <div>
-                            <h4 className="font-serif text-stone-900 mb-2">Based In</h4>
-                            <p className="text-sm text-stone-500 uppercase tracking-wider">Studio 4B</p>
-                            <p className="text-sm text-stone-500 uppercase tracking-wider">Berlin, Germany</p>
+                            <h4 className="font-serif text-stone-900 mb-2">Standort</h4>
+                            <p className="text-sm text-stone-500 uppercase tracking-wider">Atelier 4B</p>
+                            <p className="text-sm text-stone-500 uppercase tracking-wider">Berlin, Deutschland</p>
                         </div>
                     </div>
                 </div>

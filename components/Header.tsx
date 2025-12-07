@@ -19,7 +19,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, setViewMode }) => {
               Anna Maria <span className="font-light">Wilkemeyer</span>
             </h1>
             <span className="text-[10px] uppercase tracking-[0.3em] text-stone-400 mt-1">
-              Fine Art Gallery
+              Galerie für Bildende Kunst
             </span>
           </div>
           
@@ -32,7 +32,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, setViewMode }) => {
                   : 'text-stone-400 hover:text-stone-900'
               }`}
             >
-              Home
+              Startseite
             </button>
             <button
               onClick={() => setViewMode(ViewMode.ABOUT)}
@@ -42,7 +42,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, setViewMode }) => {
                   : 'text-stone-400 hover:text-stone-900'
               }`}
             >
-              About
+              Über Mich
             </button>
             <button
               onClick={() => setViewMode(ViewMode.GALLERY)}
@@ -52,18 +52,16 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, setViewMode }) => {
                   : 'text-stone-400 hover:text-stone-900'
               }`}
             >
-              Paintings
+              Galerie
             </button>
-            <button
-              onClick={() => setViewMode(viewMode === ViewMode.ADMIN ? ViewMode.WELCOME : ViewMode.LOGIN)}
-              className={`text-xs uppercase tracking-widest font-medium transition-colors ${
-                viewMode === ViewMode.ADMIN || viewMode === ViewMode.LOGIN
-                  ? 'text-stone-900' 
-                  : 'text-stone-400 hover:text-stone-900'
-              }`}
-            >
-              {viewMode === ViewMode.ADMIN ? 'Admin' : 'Login'}
-            </button>
+            {viewMode === ViewMode.ADMIN && (
+              <button
+                onClick={() => setViewMode(ViewMode.ADMIN)}
+                className="text-xs uppercase tracking-widest font-medium text-stone-900 border-b border-stone-900"
+              >
+                Admin
+              </button>
+            )}
           </nav>
         </div>
       </div>

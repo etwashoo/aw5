@@ -90,7 +90,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setMedium(metadata.medium);
       setTags(metadata.tags);
     } catch (err) {
-      setError("Failed to analyze image. Ensure API Key is valid.");
+      setError("Analyse fehlgeschlagen. Ist der API Key gültig?");
       console.error(err);
     } finally {
       setIsAnalysing(false);
@@ -99,20 +99,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handlePublish = async () => {
     if (!file || !title) {
-      setError("Please select an image and ensure a title is set.");
+      setError("Bitte Bild auswählen und Titel eingeben.");
       return;
     }
     if (!repoConfig.token) {
-        setError("GitHub Token is missing. Please check Settings.");
+        setError("GitHub Token fehlt. Bitte Einstellungen prüfen.");
         return;
     }
     setIsUploading(true);
-    setUploadStatus('Preparing...');
+    setUploadStatus('Vorbereitung...');
     try {
         const base64Data = await fileToGenerativePart(file);
-        setUploadStatus('Uploading painting to GitHub...');
+        setUploadStatus('Lade Bild zu GitHub hoch...');
         const imageUrl = await uploadImageToGitHub(file, base64Data, repoConfig);
-        setUploadStatus('Updating gallery manifest...');
+        setUploadStatus('Aktualisiere Galerie-Manifest...');
         const newArtwork: Artwork = {
             id: crypto.randomUUID(),
             imageUrl,
@@ -123,20 +123,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             createdAt: Date.now()
         };
         await updateGalleryManifest(newArtwork, repoConfig);
-        setUploadStatus('Success!');
+        setUploadStatus('Erfolg!');
         onRefreshData();
         resetForm();
         setTimeout(() => { setIsUploading(false); setUploadStatus(''); }, 1500);
     } catch (err: any) {
         console.error(err);
-        setError(err.message || "Failed to publish artwork");
+        setError(err.message || "Veröffentlichung fehlgeschlagen");
         setIsUploading(false);
         setUploadStatus('');
     }
   };
 
   const handleDelete = async (art: Artwork) => {
-      if (!window.confirm(`Are you sure you want to delete "${art.title}"? This cannot be undone.`)) {
+      if (!window.confirm(`Möchten Sie "${art.title}" wirklich löschen? Dies kann nicht rückgängig gemacht werden.`)) {
           return;
       }
       setDeletingId(art.id);
@@ -145,7 +145,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           onRefreshData();
       } catch (err: any) {
           console.error(err);
-          alert("Failed to delete artwork: " + (err.message || "Unknown error"));
+          alert("Löschen fehlgeschlagen: " + (err.message || "Unbekannter Fehler"));
       } finally {
           setDeletingId(null);
       }
@@ -203,9 +203,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
           await updateProfile(newProfile, repoConfig);
           onRefreshData(); 
-          alert("Profile updated successfully!");
+          alert("Profil erfolgreich aktualisiert!");
       } catch (e: any) {
-          alert("Failed to update profile: " + e.message);
+          alert("Fehler beim Aktualisieren: " + e.message);
       } finally {
           setIsSavingProfile(false);
       }
@@ -222,7 +222,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           if (isValid) {
               const details = await getRepoDetails(localConfig);
               if (details && details.private) {
-                setRepoWarning("Warning: This repository is set to PRIVATE. Images will NOT be visible publicly.");
+                setRepoWarning("Warnung: Dieses Repository ist PRIVAT. Bilder sind öffentlich nicht sichtbar.");
               }
               onConfigChange(localConfig);
               setConfigSuccess(true);
@@ -230,10 +230,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 setTimeout(() => setActiveTab('upload'), 1000);
               }
           } else {
-              setError("Could not access repository. Check Owner, Repo, and Token.");
+              setError("Zugriff verweigert. Bitte Owner, Repo und Token prüfen.");
           }
       } catch (e) {
-          setError("Verification failed.");
+          setError("Verifizierung fehlgeschlagen.");
       } finally {
           setIsVerifying(false);
       }
@@ -243,9 +243,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-stone-200 pb-4">
         <div className="mb-4 md:mb-0">
-           <h2 className="text-2xl font-serif text-stone-900">Artist Studio</h2>
+           <h2 className="text-2xl font-serif text-stone-900">Atelier-Verwaltung</h2>
            <p className="text-stone-500 text-sm mt-1">
-               {repoConfig.owner && repoConfig.repo ? `Connected to ${repoConfig.owner}/${repoConfig.repo}` : 'Not connected'}
+               {repoConfig.owner && repoConfig.repo ? `Verbunden mit ${repoConfig.owner}/${repoConfig.repo}` : 'Nicht verbunden'}
            </p>
         </div>
         <div className="flex gap-4">
@@ -253,37 +253,37 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 onClick={() => setActiveTab('upload')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'upload' ? 'bg-stone-100 text-stone-900' : 'text-stone-500 hover:text-stone-900'}`}
             >
-                Upload Painting
+                Gemälde hochladen
             </button>
             <button 
                 onClick={() => setActiveTab('profile')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'profile' ? 'bg-stone-100 text-stone-900' : 'text-stone-500 hover:text-stone-900'}`}
             >
-                Edit Profile
+                Profil bearbeiten
             </button>
             <button 
                 onClick={() => setActiveTab('settings')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'settings' ? 'bg-stone-100 text-stone-900' : 'text-stone-500 hover:text-stone-900'}`}
             >
-                Settings
+                Einstellungen
             </button>
             <div className="h-6 w-px bg-stone-300 mx-2 self-center"></div>
             <button 
                 onClick={onLogout}
                 className="text-red-600 hover:text-red-800 text-sm font-medium self-center"
             >
-                Log Out
+                Abmelden
             </button>
         </div>
       </div>
 
       {activeTab === 'settings' && (
           <div className="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-sm border border-stone-200">
-              <h3 className="text-xl font-medium text-stone-900 mb-6">Repository Configuration</h3>
+              <h3 className="text-xl font-medium text-stone-900 mb-6">Repository Konfiguration</h3>
               <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-1">GitHub Username</label>
+                        <label className="block text-sm font-medium text-stone-700 mb-1">GitHub Benutzername</label>
                         <input type="text" value={localConfig.owner} onChange={(e) => setLocalConfig({...localConfig, owner: e.target.value})} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" />
                       </div>
                       <div>
@@ -292,7 +292,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">Branch</label>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">Branch (Zweig)</label>
                     <input type="text" value={localConfig.branch} onChange={(e) => setLocalConfig({...localConfig, branch: e.target.value})} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" placeholder="main"/>
                   </div>
                   <div className="pt-2">
@@ -301,24 +301,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                   <div className="pt-4 mt-4 border-t border-stone-100">
                       <button onClick={saveSettings} disabled={isVerifying} className={`w-full py-2 rounded font-medium text-white transition-colors ${configSuccess ? 'bg-green-600' : 'bg-stone-900 hover:bg-stone-800'}`}>
-                          {isVerifying ? 'Verifying...' : configSuccess ? 'Connected!' : 'Save Configuration'}
+                          {isVerifying ? 'Verifiziere...' : configSuccess ? 'Verbunden!' : 'Konfiguration speichern'}
                       </button>
                       {error && <p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
                       {repoWarning && <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">{repoWarning}</div>}
                   </div>
                   {configSuccess && (
                      <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded">
-                        <p className="text-sm text-blue-800">Don't forget to update PUBLIC_REPO_CONFIG in App.tsx for public access!</p>
+                        <p className="text-sm text-blue-800">Vergessen Sie nicht, PUBLIC_REPO_CONFIG in App.tsx für den öffentlichen Zugriff zu aktualisieren!</p>
                      </div>
                   )}
                   <div className="mt-4 p-4 bg-stone-100 border border-stone-200 rounded text-stone-600 text-xs font-mono">
-                      <p className="font-bold mb-2">Make Site Public:</p>
+                      <p className="font-bold mb-2">Seite öffentlich machen:</p>
                       <p>const PUBLIC_REPO_CONFIG = {'{'}</p>
                       <p className="pl-4">owner: '{localConfig.owner}',</p>
                       <p className="pl-4">repo: '{localConfig.repo}',</p>
                       <p className="pl-4">branch: '{localConfig.branch || 'main'}'</p>
                       <p>{'};'}</p>
-                      <p className="mt-2 italic text-stone-500">Copy this into App.tsx</p>
+                      <p className="mt-2 italic text-stone-500">Kopieren Sie dies in App.tsx</p>
                   </div>
               </div>
           </div>
@@ -328,21 +328,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <div className="max-w-4xl mx-auto space-y-8">
               {/* Homepage Section */}
               <div className="bg-white p-8 rounded-lg shadow-sm border border-stone-200">
-                  <h3 className="text-xl font-serif text-stone-900 mb-6 pb-2 border-b border-stone-100">Homepage Settings</h3>
+                  <h3 className="text-xl font-serif text-stone-900 mb-6 pb-2 border-b border-stone-100">Homepage Einstellungen</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div>
-                          <label className="block text-sm font-medium text-stone-700 mb-2">Featured Painting</label>
+                          <label className="block text-sm font-medium text-stone-700 mb-2">Vorgestelltes Gemälde</label>
                           <div 
                               className="border-2 border-dashed border-stone-300 rounded-lg p-4 cursor-pointer hover:bg-stone-50 transition-colors text-center bg-stone-50/50"
                               onClick={() => featuredInputRef.current?.click()}
                           >
                               <img src={featuredPreview} alt="Featured" className="h-48 w-full object-contain mb-2" />
-                              <span className="text-xs text-stone-500">Click to change</span>
+                              <span className="text-xs text-stone-500">Zum Ändern klicken</span>
                               <input type="file" ref={featuredInputRef} className="hidden" accept="image/*" onChange={handleFeaturedImageChange} />
                           </div>
                       </div>
                       <div>
-                          <label className="block text-sm font-medium text-stone-700 mb-2">Welcome Message</label>
+                          <label className="block text-sm font-medium text-stone-700 mb-2">Willkommensnachricht</label>
                           <textarea 
                               value={welcomeMsg}
                               onChange={(e) => setWelcomeMsg(e.target.value)}
@@ -355,10 +355,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
               {/* About Page Section */}
               <div className="bg-white p-8 rounded-lg shadow-sm border border-stone-200">
-                  <h3 className="text-xl font-serif text-stone-900 mb-6 pb-2 border-b border-stone-100">About Page Settings</h3>
+                  <h3 className="text-xl font-serif text-stone-900 mb-6 pb-2 border-b border-stone-100">Über Mich - Einstellungen</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div>
-                          <label className="block text-sm font-medium text-stone-700 mb-2">Artist Portrait</label>
+                          <label className="block text-sm font-medium text-stone-700 mb-2">Künstlerporträt</label>
                           <div 
                               className="border-2 border-dashed border-stone-300 rounded-lg p-4 cursor-pointer hover:bg-stone-50 transition-colors text-center bg-stone-50/50"
                               onClick={() => aboutInputRef.current?.click()}
@@ -366,20 +366,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               {aboutPreview ? (
                                 <img src={aboutPreview} alt="Artist" className="h-64 w-full object-cover mb-2 grayscale" />
                               ) : (
-                                <div className="h-64 flex items-center justify-center text-stone-400">No Image</div>
+                                <div className="h-64 flex items-center justify-center text-stone-400">Kein Bild</div>
                               )}
-                              <span className="text-xs text-stone-500">Click to upload portrait</span>
+                              <span className="text-xs text-stone-500">Zum Hochladen klicken</span>
                               <input type="file" ref={aboutInputRef} className="hidden" accept="image/*" onChange={handleAboutImageChange} />
                           </div>
                       </div>
                       <div>
-                          <label className="block text-sm font-medium text-stone-700 mb-2">Artist Biography</label>
+                          <label className="block text-sm font-medium text-stone-700 mb-2">Biografie</label>
                           <textarea 
                               value={aboutMsg}
                               onChange={(e) => setAboutMsg(e.target.value)}
                               rows={12}
                               className="w-full px-4 py-2 border border-stone-300 rounded outline-none focus:border-stone-500"
-                              placeholder="Write your biography here..."
+                              placeholder="Biografie hier schreiben..."
                           />
                       </div>
                   </div>
@@ -391,7 +391,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     disabled={isSavingProfile}
                     className="px-8 py-3 bg-stone-900 text-white font-medium rounded hover:bg-stone-800 disabled:opacity-50"
                 >
-                    {isSavingProfile ? 'Saving Changes...' : 'Save All Profile Changes'}
+                    {isSavingProfile ? 'Speichern...' : 'Alle Änderungen speichern'}
                 </button>
               </div>
           </div>
@@ -417,8 +417,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                              <span className="text-2xl">🎨</span>
                         </div>
                         <div>
-                            <p className="text-lg font-medium text-stone-900">Upload Painting</p>
-                            <p className="text-sm text-stone-500">JPG, PNG up to 5MB</p>
+                            <p className="text-lg font-medium text-stone-900">Gemälde hochladen</p>
+                            <p className="text-sm text-stone-500">JPG, PNG bis zu 5MB</p>
                         </div>
                     </div>
                 )}
@@ -431,7 +431,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     disabled={isAnalysing || isUploading}
                     className="w-full py-3 bg-stone-100 text-stone-900 border border-stone-200 font-medium rounded shadow-sm hover:bg-stone-200 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                    {isAnalysing ? 'Analyzing with Gemini...' : '✨ Auto-Generate Metadata'}
+                    {isAnalysing ? 'Analysiere mit Gemini...' : '✨ Metadaten automatisch generieren'}
                 </button>
             )}
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
@@ -443,22 +443,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                          <p className="text-stone-900 font-medium">{uploadStatus}</p>
                     </div>
                 )}
-                <h3 className="text-lg font-medium text-stone-900 mb-6">Painting Details</h3>
+                <h3 className="text-lg font-medium text-stone-900 mb-6">Details zum Gemälde</h3>
                 <div className="space-y-5">
                     <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-1">Title</label>
-                        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" placeholder="Untitled" />
+                        <label className="block text-sm font-medium text-stone-700 mb-1">Titel</label>
+                        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" placeholder="Ohne Titel" />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-1">Medium</label>
-                        <input type="text" value={medium} onChange={(e) => setMedium(e.target.value)} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" placeholder="e.g. Oil on Canvas" />
+                        <label className="block text-sm font-medium text-stone-700 mb-1">Medium / Technik</label>
+                        <input type="text" value={medium} onChange={(e) => setMedium(e.target.value)} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" placeholder="z. B. Öl auf Leinwand" />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-1">Description</label>
-                        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={6} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" placeholder="Generated description will appear here..." />
+                        <label className="block text-sm font-medium text-stone-700 mb-1">Beschreibung</label>
+                        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={6} className="w-full px-4 py-2 border border-stone-300 rounded outline-none" placeholder="Generierte Beschreibung erscheint hier..." />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-1">Tags</label>
+                        <label className="block text-sm font-medium text-stone-700 mb-1">Schlagworte (Tags)</label>
                         <div className="flex flex-wrap gap-2 mb-2">
                             {tags.map((tag, idx) => (
                                 <span key={idx} className="bg-stone-100 text-stone-700 px-2 py-1 rounded text-xs flex items-center gap-1">
@@ -469,7 +469,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                     <div className="pt-4 border-t border-stone-100">
                         <button onClick={handlePublish} disabled={isUploading || !title} className="w-full py-3 bg-stone-900 text-white font-serif tracking-wide rounded hover:bg-stone-800 disabled:opacity-50">
-                            Add to Gallery
+                            Zur Galerie hinzufügen
                         </button>
                     </div>
                 </div>
@@ -480,7 +480,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* Existing Artworks List (only show on upload tab) */}
       {activeTab === 'upload' && (
       <div className="mt-16">
-          <h3 className="text-xl font-serif text-stone-900 mb-6">Collection ({artworks.length})</h3>
+          <h3 className="text-xl font-serif text-stone-900 mb-6">Sammlung ({artworks.length})</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {artworks.map(art => (
                   <div key={art.id} className="group relative border border-stone-200 rounded overflow-hidden">
@@ -490,13 +490,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               onClick={() => handleDelete(art)}
                               disabled={!!deletingId}
                               className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-md disabled:bg-stone-400"
-                              title="Delete Artwork"
+                              title="Kunstwerk löschen"
                           >
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                           </button>
                           {deletingId === art.id && (
                              <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center z-20">
-                                 <span className="text-red-600 font-bold text-xs">DELETING...</span>
+                                 <span className="text-red-600 font-bold text-xs">LÖSCHE...</span>
                              </div>
                           )}
                       </div>

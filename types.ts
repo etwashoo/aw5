@@ -13,7 +13,8 @@ export enum ViewMode {
   GALLERY = 'GALLERY',
   ABOUT = 'ABOUT',
   ADMIN = 'ADMIN',
-  LOGIN = 'LOGIN'
+  LOGIN = 'LOGIN',
+  IMPRESSUM = 'IMPRESSUM'
 }
 
 export interface GeneratedMetadata {

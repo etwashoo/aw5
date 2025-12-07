@@ -2,13 +2,28 @@ import { Artwork, RepoConfig, ArtistProfile } from '../types';
 
 const BASE_URL = 'https://api.github.com';
 
-// Helper for Unicode-safe Base64 encoding/decoding
+// Helper for Unicode-safe Base64 encoding/decoding using modern TextEncoder/TextDecoder
 const utf8_to_b64 = (str: string) => {
-  return window.btoa(unescape(encodeURIComponent(str)));
+  try {
+    const bytes = new TextEncoder().encode(str);
+    const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
+    return btoa(binString);
+  } catch (e) {
+    console.error("Encoding error", e);
+    // Fallback for older browsers if needed, though modern ones support TextEncoder
+    return window.btoa(unescape(encodeURIComponent(str)));
+  }
 };
 
 const b64_to_utf8 = (str: string) => {
-  return decodeURIComponent(escape(window.atob(str)));
+  try {
+    const binString = atob(str);
+    const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0)!);
+    return new TextDecoder().decode(bytes);
+  } catch (e) {
+    console.error("Decoding error", e);
+    return decodeURIComponent(escape(window.atob(str)));
+  }
 };
 
 export const getRepoDetails = async (config: RepoConfig) => {

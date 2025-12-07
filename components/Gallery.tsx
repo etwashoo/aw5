@@ -14,8 +14,8 @@ export const Gallery: React.FC<GalleryProps> = ({ artworks }) => {
         <div className="w-16 h-16 border-2 border-stone-300 rounded-full mb-6 flex items-center justify-center">
           <span className="text-2xl">🖼️</span>
         </div>
-        <h3 className="text-xl font-serif text-stone-900 mb-2">No artwork displayed yet</h3>
-        <p className="text-stone-500 max-w-md">The artist is currently curating their collection. Please check back soon or log in to the admin panel to add pieces.</p>
+        <h3 className="text-xl font-serif text-stone-900 mb-2">Noch keine Kunstwerke ausgestellt</h3>
+        <p className="text-stone-500 max-w-md">Die Künstlerin kuratiert derzeit ihre Sammlung. Bitte schauen Sie bald wieder vorbei.</p>
       </div>
     );
   }

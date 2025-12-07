@@ -14,7 +14,7 @@ export const Welcome: React.FC<WelcomeProps> = ({ profile }) => {
                     <div className="absolute inset-0 bg-stone-50 transform translate-x-4 translate-y-4 -z-10"></div>
                     <img 
                         src={profile.featuredImageUrl} 
-                        alt="Featured Painting" 
+                        alt="Ausgewähltes Gemälde" 
                         className="w-full h-auto object-cover shadow-sm max-h-[70vh]"
                         onError={(e) => {
                             (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1579783902614-a3fb39279c0f?q=80&w=1000&auto=format&fit=crop';
@@ -25,10 +25,10 @@ export const Welcome: React.FC<WelcomeProps> = ({ profile }) => {
                 {/* Text Section */}
                 <div className="order-1 lg:order-2 text-center lg:text-left space-y-8">
                     <div className="space-y-2">
-                        <span className="text-xs tracking-[0.3em] uppercase text-stone-400">Contemporary Fine Art</span>
+                        <span className="text-xs tracking-[0.3em] uppercase text-stone-400">Zeitgenössische Malerei</span>
                         <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif text-stone-900 leading-tight">
-                            Capturing the <br/>
-                            <span className="italic font-light text-stone-600">Soul</span> of Color
+                            Die Seele der<br/>
+                            <span className="italic font-light text-stone-600">Farbe</span> einfangen
                         </h2>
                     </div>
                     

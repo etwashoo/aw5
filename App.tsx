@@ -4,6 +4,7 @@ import { Gallery } from './components/Gallery';
 import { AdminPanel } from './components/AdminPanel';
 import { Welcome } from './components/Welcome';
 import { About } from './components/About';
+import { Impressum } from './components/Impressum';
 import { ViewMode, Artwork, RepoConfig, ArtistProfile } from './types';
 import { fetchGalleryFromGitHub, fetchProfile } from './services/githubService';
 
@@ -17,9 +18,9 @@ const PUBLIC_REPO_CONFIG: RepoConfig = {
 };
 
 const DEFAULT_PROFILE: ArtistProfile = {
-  welcomeMessage: "Welcome to my studio. Here I explore the interplay of light, shadow, and color through oil and acrylic mediums.\n\nMy work is an invitation to pause and reflect on the quiet moments of existence.",
+  welcomeMessage: "Willkommen in meinem Atelier. Hier erforsche ich das Zusammenspiel von Licht, Schatten und Farbe durch Öl- und Acrylmalerei.\n\nMeine Arbeit ist eine Einladung, innezuhalten und über die stillen Momente des Daseins nachzudenken.",
   featuredImageUrl: "https://images.unsplash.com/photo-1579783902614-a3fb39279c0f?q=80&w=1000&auto=format&fit=crop",
-  aboutText: "Anna Maria Wilkemeyer is a contemporary painter known for her evocative use of texture and light. Born in Berlin and educated in Florence, her work bridges the gap between classical technique and abstract expressionism.\n\nWith a focus on large-scale oil paintings, she investigates themes of memory, nature, and the passage of time.",
+  aboutText: "Anna Maria Wilkemeyer ist eine zeitgenössische Malerin, bekannt für ihren evokativen Einsatz von Textur und Licht. Geboren in Berlin und ausgebildet in Florenz, schlägt ihr Werk eine Brücke zwischen klassischer Technik und abstraktem Expressionismus.\n\nMit einem Schwerpunkt auf großformatigen Ölgemälden untersucht sie Themen wie Erinnerung, Natur und das Verstreichen der Zeit.",
   aboutImageUrl: "https://images.unsplash.com/photo-1551029506-0807df4e2031?q=80&w=1000&auto=format&fit=crop"
 };
 
@@ -68,6 +69,20 @@ const App: React.FC = () => {
             setArtworks(galleryData);
         }
         if (profileData) {
+            // Check for old default English welcome text and replace it with German default if found
+            const oldEnglishWelcome = "Welcome to my studio. Here I explore the interplay of light, shadow, and color through oil and acrylic mediums.\n\nMy work is an invitation to pause and reflect on the quiet moments of existence.";
+            
+            if (profileData.welcomeMessage && profileData.welcomeMessage.replace(/\s+/g, ' ').trim() === oldEnglishWelcome.replace(/\s+/g, ' ').trim()) {
+                profileData.welcomeMessage = DEFAULT_PROFILE.welcomeMessage;
+            }
+
+            // Check for old default English about text and replace it with German default if found
+            const oldEnglishAbout = "Anna Maria Wilkemeyer is a contemporary painter known for her evocative use of texture and light. Born in Berlin and educated in Florence, her work bridges the gap between classical technique and abstract expressionism.\n\nWith a focus on large-scale oil paintings, she investigates themes of memory, nature, and the passage of time.";
+
+            if (profileData.aboutText && profileData.aboutText.replace(/\s+/g, ' ').trim() === oldEnglishAbout.replace(/\s+/g, ' ').trim()) {
+                profileData.aboutText = DEFAULT_PROFILE.aboutText;
+            }
+
             // Merge with default to ensure new fields like 'aboutText' exist if loading old JSON
             setArtistProfile({ ...DEFAULT_PROFILE, ...profileData });
         }
@@ -82,7 +97,7 @@ const App: React.FC = () => {
       setPasswordInput('');
       setLoginError(null);
     } else {
-      setLoginError('Incorrect password');
+      setLoginError('Falsches Passwort');
     }
   };
 
@@ -106,18 +121,22 @@ const App: React.FC = () => {
              <About profile={artistProfile} />
         )}
 
+        {viewMode === ViewMode.IMPRESSUM && (
+             <Impressum />
+        )}
+
         {viewMode === ViewMode.GALLERY && (
           <>
              {!isConfigured ? (
                  <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center">
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-2xl">
-                        <h2 className="text-xl font-serif text-yellow-800 mb-2">Setup Required</h2>
-                        <p className="text-yellow-700 mb-4">Gallery configuration is missing.</p>
+                        <h2 className="text-xl font-serif text-yellow-800 mb-2">Einrichtung erforderlich</h2>
+                        <p className="text-yellow-700 mb-4">Galerie-Konfiguration fehlt.</p>
                         <button 
                             onClick={() => setViewMode(ViewMode.LOGIN)}
                             className="bg-yellow-100 hover:bg-yellow-200 text-yellow-900 px-4 py-2 rounded transition-colors text-sm font-medium"
                         >
-                            Artist Login
+                            Künstler-Login
                         </button>
                     </div>
                  </div>
@@ -125,7 +144,7 @@ const App: React.FC = () => {
                  <>
                     {isLoadingData && artworks.length === 0 ? (
                         <div className="flex justify-center items-center h-64">
-                            <div className="animate-pulse text-stone-400 font-serif">Loading Collection...</div>
+                            <div className="animate-pulse text-stone-400 font-serif">Sammlung wird geladen...</div>
                         </div>
                     ) : (
                         <Gallery artworks={artworks} />
@@ -138,18 +157,18 @@ const App: React.FC = () => {
         {viewMode === ViewMode.LOGIN && (
           <div className="flex items-center justify-center min-h-[60vh] px-4">
             <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-lg border border-stone-100">
-              <h2 className="text-2xl font-serif text-center mb-2 text-stone-900">Artist Access</h2>
-              <p className="text-center text-stone-500 text-sm mb-6">Enter the studio password to manage your paintings.</p>
+              <h2 className="text-2xl font-serif text-center mb-2 text-stone-900">Künstler-Login</h2>
+              <p className="text-center text-stone-500 text-sm mb-6">Geben Sie das Atelier-Passwort ein, um Ihre Werke zu verwalten.</p>
               
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">Password</label>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Passwort</label>
                   <input
                     type="password"
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
                     className="w-full px-4 py-2 bg-white text-stone-900 border border-stone-300 rounded focus:ring-1 focus:ring-stone-500 focus:border-stone-500 outline-none placeholder-stone-400"
-                    placeholder="Enter password..."
+                    placeholder="Passwort eingeben..."
                     autoFocus
                   />
                 </div>
@@ -158,7 +177,7 @@ const App: React.FC = () => {
                   type="submit"
                   className="w-full py-2 bg-stone-900 text-white rounded hover:bg-stone-800 transition-colors"
                 >
-                  Enter Studio
+                  Atelier betreten
                 </button>
               </form>
             </div>
@@ -181,8 +200,16 @@ const App: React.FC = () => {
 
       <footer className="bg-stone-900 text-stone-400 py-12 border-t border-stone-800">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="font-serif italic text-lg mb-4 text-stone-300">"Painting is poetry that is seen rather than felt."</p>
-          <p className="text-sm tracking-wide">© {new Date().getFullYear()} Anna Maria Wilkemeyer. Powered by Gemini AI & GitHub.</p>
+          <p className="text-sm tracking-wide">© {new Date().getFullYear()} Anna Maria Wilkemeyer.</p>
+          <div className="mt-8 space-x-6 flex justify-center items-center">
+             <button onClick={() => setViewMode(ViewMode.IMPRESSUM)} className="text-xs text-stone-500 hover:text-stone-300 uppercase tracking-widest">
+               Impressum
+             </button>
+             <span className="text-stone-700">|</span>
+             <button onClick={() => setViewMode(ViewMode.LOGIN)} className="text-xs text-stone-500 hover:text-stone-300 uppercase tracking-widest">
+               Künstler-Login
+             </button>
+          </div>
         </div>
       </footer>
     </div>
