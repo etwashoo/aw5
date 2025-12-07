@@ -143,7 +143,7 @@ export const updateGalleryManifest = async (
   let currentArtworks: Artwork[] = [];
 
   try {
-    const getResponse = await fetch(url, {
+    const getResponse = await fetch(`${url}?ref=${branch}`, {
       headers: { 
         'Authorization': `Bearer ${config.token}`,
         'Accept': 'application/vnd.github.v3+json'
@@ -200,7 +200,8 @@ export const deleteArtworkFromGitHub = async (
   const manifestUrl = `${BASE_URL}/repos/${config.owner}/${config.repo}/contents/${manifestPath}`;
 
   // Get current manifest
-  const getManifestResponse = await fetch(manifestUrl, {
+  // IMPORTANT: Explicitly use ?ref=branch to ensure we get the latest SHA for the correct branch
+  const getManifestResponse = await fetch(`${manifestUrl}?ref=${branch}`, {
     headers: {
       'Authorization': `Bearer ${config.token}`,
       'Accept': 'application/vnd.github.v3+json'
@@ -240,27 +241,34 @@ export const deleteArtworkFromGitHub = async (
   }
 
   // 2. Attempt to delete the image file
-  // We need to extract the path relative to the repo root from the full raw URL
-  // Pattern: https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path/to/file}
+  // We perform this after the manifest update so the UI is consistent even if file deletion fails
   try {
-     // Create a flexible regex to capture the path after the branch
-     // This assumes the branch name doesn't contain slashes, or we rely on the known branch
-     const urlObj = new URL(artwork.imageUrl);
-     const pathParts = urlObj.pathname.split('/');
-     // pathname is /owner/repo/branch/path/to/file
-     // We know owner, repo, branch.
-     // Let's find the index of the branch and take everything after.
+     let imagePath = '';
      
-     // Simple heuristic: find 'images/' in the URL
-     const imagePathIndex = pathParts.findIndex(part => part === 'images');
+     // Strategy 1: Remove Raw URL prefix
+     // This assumes the URL matches the standard GitHub Raw format for the configured repo
+     const rawPrefix = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${branch}/`;
      
-     if (imagePathIndex !== -1) {
-         const imagePath = pathParts.slice(imagePathIndex).join('/');
+     if (artwork.imageUrl.startsWith(rawPrefix)) {
+         imagePath = artwork.imageUrl.substring(rawPrefix.length);
+     } 
+     // Strategy 2: Look for 'images/' directory pattern as fallback
+     else if (artwork.imageUrl.includes('/images/')) {
+         const urlObj = new URL(artwork.imageUrl);
+         const pathParts = urlObj.pathname.split('/'); 
+         const imageIndex = pathParts.indexOf('images');
+         if (imageIndex !== -1) {
+             imagePath = pathParts.slice(imageIndex).join('/');
+         }
+     }
+
+     if (imagePath) {
+         imagePath = decodeURIComponent(imagePath); // Ensure spaces/special chars are handled
          
-         const imgFileUrl = `${BASE_URL}/repos/${config.owner}/${config.repo}/contents/${imagePath}?ref=${branch}`;
+         const imgApiUrl = `${BASE_URL}/repos/${config.owner}/${config.repo}/contents/${imagePath}`;
 
          // Get SHA of image file
-         const getImgResponse = await fetch(imgFileUrl, {
+         const getImgResponse = await fetch(`${imgApiUrl}?ref=${branch}`, {
             headers: {
                 'Authorization': `Bearer ${config.token}`,
                 'Accept': 'application/vnd.github.v3+json'
@@ -272,7 +280,9 @@ export const deleteArtworkFromGitHub = async (
              const imgSha = imgData.sha;
 
              // Delete image file
-             await fetch(imgFileUrl, {
+             // NOTE: Do NOT include ?ref= parameter in the URL for DELETE.
+             // Params go in the body.
+             await fetch(imgApiUrl, {
                  method: 'DELETE',
                  headers: {
                     'Authorization': `Bearer ${config.token}`,
@@ -284,13 +294,11 @@ export const deleteArtworkFromGitHub = async (
                      branch: branch
                  })
              });
-             console.log("Image file deleted successfully");
          } else {
-             console.warn("Could not find image file to delete (might have been deleted already)");
+             console.warn("Image file not found (404), likely already deleted.");
          }
      }
   } catch (e) {
-      console.warn("Could not delete image file, but removed from gallery list.", e);
-      // We don't throw here because the primary goal (removing from gallery list) succeeded.
+      console.warn("Error attempting to delete image file (non-fatal):", e);
   }
 };
