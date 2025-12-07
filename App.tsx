@@ -206,7 +206,7 @@ const App: React.FC = () => {
 
       <footer className="bg-stone-100 text-stone-600 py-12 border-t border-stone-200">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-sm tracking-wide">© {new Date().getFullYear()} Anna Maria Wilkemeyer.</p>
+          <p className="text-sm tracking-wide">© {new Date().getFullYear()} Anna Maria Wilkemeyer</p>
           <div className="mt-8 space-x-6 flex justify-center items-center">
              <button onClick={() => setViewMode(ViewMode.IMPRESSUM)} className="text-xs text-stone-500 hover:text-stone-900 uppercase tracking-widest transition-colors">
                Impressum

@@ -31,7 +31,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [medium, setMedium] = useState('');
+  const [medium, setMedium] = useState('Acryl auf Leinwand');
   const [tags, setTags] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,7 +72,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setPreviewUrl(url);
       setTitle('');
       setDescription('');
-      setMedium('');
+      setMedium('Acryl auf Leinwand');
       setTags([]);
       setError(null);
     }
@@ -87,7 +87,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       const metadata = await generateArtworkMetadata(base64Data, file.type);
       setTitle(metadata.title);
       setDescription(metadata.description);
-      setMedium(metadata.medium);
+      if (metadata.medium) {
+          setMedium(metadata.medium);
+      }
       setTags(metadata.tags);
     } catch (err) {
       setError("Analyse fehlgeschlagen. Ist der API Key gültig?");
@@ -156,7 +158,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setPreviewUrl(null);
     setTitle('');
     setDescription('');
-    setMedium('');
+    setMedium('Acryl auf Leinwand');
     setTags([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };

@@ -46,8 +46,7 @@ export const About: React.FC<AboutProps> = ({ profile }) => {
                         </div>
                         <div>
                             <h4 className="font-serif text-stone-900 mb-2">Standort</h4>
-                            <p className="text-sm text-stone-500 uppercase tracking-wider">Atelier 4B</p>
-                            <p className="text-sm text-stone-500 uppercase tracking-wider">Berlin, Deutschland</p>
+                            <p className="text-sm text-stone-500 uppercase tracking-wider">Fürstenau, Deutschland</p>
                         </div>
                     </div>
                 </div>

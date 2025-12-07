@@ -26,7 +26,7 @@ export const generateArtworkMetadata = async (base64Image: string, mimeType: str
     properties: {
       title: { type: Type.STRING, description: "Ein kreativer, evokativer Titel für das Gemälde." },
       description: { type: Type.STRING, description: "Eine anspruchsvolle kuratorische Beschreibung auf Deutsch, die sich auf Pinselstrich, Farbpalette und emotionale Resonanz konzentriert." },
-      medium: { type: Type.STRING, description: "Das Malmedium (z. B. Öl auf Leinwand, Acryl auf Holz, Aquarell, Gouache)." },
+      medium: { type: Type.STRING, description: "Das Malmedium. Standard: 'Acryl auf Leinwand', wenn nicht eindeutig anders." },
       tags: { 
         type: Type.ARRAY, 
         items: { type: Type.STRING },
