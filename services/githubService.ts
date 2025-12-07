@@ -28,10 +28,12 @@ const b64_to_utf8 = (str: string) => {
 
 export const getRepoDetails = async (config: RepoConfig) => {
   if (!config.token) return null;
+  const owner = config.owner.trim();
+  const repo = config.repo.trim();
   try {
-    const response = await fetch(`${BASE_URL}/repos/${config.owner}/${config.repo}`, {
+    const response = await fetch(`${BASE_URL}/repos/${owner}/${repo}`, {
       headers: {
-        'Authorization': `Bearer ${config.token}`,
+        'Authorization': `Bearer ${config.token.trim()}`,
         'Accept': 'application/vnd.github.v3+json'
       }
     });
@@ -42,17 +44,38 @@ export const getRepoDetails = async (config: RepoConfig) => {
   }
 };
 
+export const checkBranchExists = async (config: RepoConfig): Promise<boolean> => {
+    if (!config.token) return false;
+    const owner = config.owner.trim();
+    const repo = config.repo.trim();
+    const branch = (config.branch || 'main').trim();
+
+    try {
+        const response = await fetch(`${BASE_URL}/repos/${owner}/${repo}/branches/${branch}`, {
+            headers: {
+                'Authorization': `Bearer ${config.token.trim()}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
+        return response.ok;
+    } catch (e) {
+        return false;
+    }
+};
+
 export const fetchGalleryFromGitHub = async (config: RepoConfig): Promise<Artwork[]> => {
   if (!config.owner || !config.repo) return [];
   
-  const branch = config.branch || 'main';
+  const owner = config.owner.trim();
+  const repo = config.repo.trim();
+  const branch = (config.branch || 'main').trim();
 
   // OPTION 1: authenticated API fetch
   if (config.token) {
     try {
-      const response = await fetch(`${BASE_URL}/repos/${config.owner}/${config.repo}/contents/gallery.json?ref=${branch}`, {
+      const response = await fetch(`${BASE_URL}/repos/${owner}/${repo}/contents/gallery.json?ref=${branch}`, {
         headers: {
-          'Authorization': `Bearer ${config.token}`,
+          'Authorization': `Bearer ${config.token.trim()}`,
           'Accept': 'application/vnd.github.v3+json',
           'Cache-Control': 'no-store'
         }
@@ -74,7 +97,7 @@ export const fetchGalleryFromGitHub = async (config: RepoConfig): Promise<Artwor
   }
 
   // OPTION 2: Raw URL fetch
-  const url = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${branch}/gallery.json?t=${Date.now()}`;
+  const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/gallery.json?t=${Date.now()}`;
   
   try {
     const response = await fetch(url, { cache: 'no-store' });
@@ -89,10 +112,12 @@ export const fetchGalleryFromGitHub = async (config: RepoConfig): Promise<Artwor
 
 export const fetchProfile = async (config: RepoConfig): Promise<ArtistProfile | null> => {
   if (!config.owner || !config.repo) return null;
-  const branch = config.branch || 'main';
+  const owner = config.owner.trim();
+  const repo = config.repo.trim();
+  const branch = (config.branch || 'main').trim();
   
   // Try Raw URL first (public access)
-  const url = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${branch}/profile.json?t=${Date.now()}`;
+  const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/profile.json?t=${Date.now()}`;
   try {
     const response = await fetch(url, { cache: 'no-store' });
     if (response.ok) {
@@ -106,16 +131,20 @@ export const fetchProfile = async (config: RepoConfig): Promise<ArtistProfile | 
 
 export const updateProfile = async (profile: ArtistProfile, config: RepoConfig): Promise<void> => {
     if (!config.token) throw new Error("Authentication required");
+    const owner = config.owner.trim();
+    const repo = config.repo.trim();
+    const branch = (config.branch || 'main').trim();
+    const token = config.token.trim();
+
     const path = 'profile.json';
-    const branch = config.branch || 'main';
-    const url = `${BASE_URL}/repos/${config.owner}/${config.repo}/contents/${path}`;
+    const url = `${BASE_URL}/repos/${owner}/${repo}/contents/${path}`;
 
     let sha: string | undefined;
 
     try {
         const getResponse = await fetch(`${url}?ref=${branch}`, {
             headers: { 
-                'Authorization': `Bearer ${config.token}`,
+                'Authorization': `Bearer ${token}`,
                 'Accept': 'application/vnd.github.v3+json'
             }
         });
@@ -130,7 +159,7 @@ export const updateProfile = async (profile: ArtistProfile, config: RepoConfig):
     const response = await fetch(url, {
         method: 'PUT',
         headers: {
-            'Authorization': `Bearer ${config.token}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -148,14 +177,25 @@ export const updateProfile = async (profile: ArtistProfile, config: RepoConfig):
 
 export const verifyRepoAccess = async (config: RepoConfig): Promise<boolean> => {
   if (!config.token) return false;
+  const owner = config.owner.trim();
+  const repo = config.repo.trim();
   try {
-    const response = await fetch(`${BASE_URL}/repos/${config.owner}/${config.repo}`, {
+    const response = await fetch(`${BASE_URL}/repos/${owner}/${repo}`, {
       headers: {
-        'Authorization': `Bearer ${config.token}`,
+        'Authorization': `Bearer ${config.token.trim()}`,
         'Accept': 'application/vnd.github.v3+json'
       }
     });
-    return response.ok;
+    // Check for push permissions if available in response
+    if (response.ok) {
+        const data = await response.json();
+        if (data.permissions && data.permissions.push === false) {
+            console.warn("User has read but not write access");
+            return false;
+        }
+        return true;
+    }
+    return false;
   } catch (e) {
     return false;
   }
@@ -168,14 +208,18 @@ export const uploadImageToGitHub = async (
 ): Promise<string> => {
   if (!config.token) throw new Error("Authentication required");
 
+  const owner = config.owner.trim();
+  const repo = config.repo.trim();
+  const branch = (config.branch || 'main').trim();
+  const token = config.token.trim();
+
   const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '').toLowerCase();
   const path = `images/${Date.now()}-${cleanName}`;
-  const branch = config.branch || 'main';
 
-  const response = await fetch(`${BASE_URL}/repos/${config.owner}/${config.repo}/contents/${path}`, {
+  const response = await fetch(`${BASE_URL}/repos/${owner}/${repo}/contents/${path}`, {
     method: 'PUT',
     headers: {
-      'Authorization': `Bearer ${config.token}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -187,10 +231,13 @@ export const uploadImageToGitHub = async (
 
   if (!response.ok) {
     const error = await response.json();
+    if (response.status === 404) {
+        throw new Error(`Repository '${owner}/${repo}' oder Branch '${branch}' nicht gefunden. (GitHub 404)`);
+    }
     throw new Error(error.message || "Failed to upload image");
   }
 
-  return `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${branch}/${path}`;
+  return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
 };
 
 export const updateGalleryManifest = async (
@@ -199,9 +246,13 @@ export const updateGalleryManifest = async (
 ): Promise<void> => {
   if (!config.token) throw new Error("Authentication required");
   
+  const owner = config.owner.trim();
+  const repo = config.repo.trim();
+  const branch = (config.branch || 'main').trim();
+  const token = config.token.trim();
+
   const path = 'gallery.json';
-  const branch = config.branch || 'main';
-  const url = `${BASE_URL}/repos/${config.owner}/${config.repo}/contents/${path}`;
+  const url = `${BASE_URL}/repos/${owner}/${repo}/contents/${path}`;
 
   let sha: string | undefined;
   let currentArtworks: Artwork[] = [];
@@ -209,7 +260,7 @@ export const updateGalleryManifest = async (
   try {
     const getResponse = await fetch(`${url}?ref=${branch}`, {
       headers: { 
-        'Authorization': `Bearer ${config.token}`,
+        'Authorization': `Bearer ${token}`,
         'Accept': 'application/vnd.github.v3+json'
       }
     });
@@ -232,7 +283,7 @@ export const updateGalleryManifest = async (
   const response = await fetch(url, {
     method: 'PUT',
     headers: {
-      'Authorization': `Bearer ${config.token}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -255,13 +306,17 @@ export const deleteArtworkFromGitHub = async (
 ): Promise<void> => {
   if (!config.token) throw new Error("Authentication required");
 
-  const branch = config.branch || 'main';
+  const owner = config.owner.trim();
+  const repo = config.repo.trim();
+  const branch = (config.branch || 'main').trim();
+  const token = config.token.trim();
+
   const manifestPath = 'gallery.json';
-  const manifestUrl = `${BASE_URL}/repos/${config.owner}/${config.repo}/contents/${manifestPath}`;
+  const manifestUrl = `${BASE_URL}/repos/${owner}/${repo}/contents/${manifestPath}`;
 
   const getManifestResponse = await fetch(`${manifestUrl}?ref=${branch}`, {
     headers: {
-      'Authorization': `Bearer ${config.token}`,
+      'Authorization': `Bearer ${token}`,
       'Accept': 'application/vnd.github.v3+json'
     }
   });
@@ -281,7 +336,7 @@ export const deleteArtworkFromGitHub = async (
   const updateManifestResponse = await fetch(manifestUrl, {
     method: 'PUT',
     headers: {
-      'Authorization': `Bearer ${config.token}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -298,7 +353,7 @@ export const deleteArtworkFromGitHub = async (
 
   try {
      let imagePath = '';
-     const rawPrefix = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${branch}/`;
+     const rawPrefix = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/`;
      
      if (artwork.imageUrl.startsWith(rawPrefix)) {
          imagePath = artwork.imageUrl.substring(rawPrefix.length);
@@ -313,11 +368,11 @@ export const deleteArtworkFromGitHub = async (
 
      if (imagePath) {
          imagePath = decodeURIComponent(imagePath);
-         const imgApiUrl = `${BASE_URL}/repos/${config.owner}/${config.repo}/contents/${imagePath}`;
+         const imgApiUrl = `${BASE_URL}/repos/${owner}/${repo}/contents/${imagePath}`;
 
          const getImgResponse = await fetch(`${imgApiUrl}?ref=${branch}`, {
             headers: {
-                'Authorization': `Bearer ${config.token}`,
+                'Authorization': `Bearer ${token}`,
                 'Accept': 'application/vnd.github.v3+json'
             }
          });
@@ -328,7 +383,7 @@ export const deleteArtworkFromGitHub = async (
              await fetch(imgApiUrl, {
                  method: 'DELETE',
                  headers: {
-                    'Authorization': `Bearer ${config.token}`,
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                  },
                  body: JSON.stringify({

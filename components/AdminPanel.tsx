@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Artwork, RepoConfig, ArtistProfile } from '../types';
 import { generateArtworkMetadata, fileToGenerativePart } from '../services/geminiService';
-import { uploadImageToGitHub, updateGalleryManifest, verifyRepoAccess, getRepoDetails, deleteArtworkFromGitHub, updateProfile } from '../services/githubService';
+import { uploadImageToGitHub, updateGalleryManifest, verifyRepoAccess, getRepoDetails, deleteArtworkFromGitHub, updateProfile, checkBranchExists } from '../services/githubService';
 
 interface AdminPanelProps {
   artworks: Artwork[];
@@ -219,14 +219,38 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setError(null);
       setRepoWarning(null);
       setConfigSuccess(false);
+
+      // Trim inputs to remove invisible spaces
+      const cleanConfig = {
+          owner: localConfig.owner.trim(),
+          repo: localConfig.repo.trim(),
+          branch: (localConfig.branch || 'main').trim(),
+          token: localConfig.token?.trim()
+      };
+      setLocalConfig(cleanConfig);
+
+      if (cleanConfig.owner === 'etwashoo') {
+          setError("Bitte ändern Sie den Benutzernamen von 'etwashoo' zu Ihrem eigenen GitHub Namen.");
+          setIsVerifying(false);
+          return;
+      }
+
       try {
-          const isValid = await verifyRepoAccess(localConfig);
+          const isValid = await verifyRepoAccess(cleanConfig);
           if (isValid) {
-              const details = await getRepoDetails(localConfig);
+              // Verify branch existence
+              const branchExists = await checkBranchExists(cleanConfig);
+              if (!branchExists) {
+                  setError(`Branch '${cleanConfig.branch}' existiert nicht. Ist das Repository leer? Erstellen Sie eine README-Datei auf GitHub.`);
+                  setIsVerifying(false);
+                  return;
+              }
+
+              const details = await getRepoDetails(cleanConfig);
               if (details && details.private) {
                 setRepoWarning("Warnung: Dieses Repository ist PRIVAT. Bilder sind öffentlich nicht sichtbar.");
               }
-              onConfigChange(localConfig);
+              onConfigChange(cleanConfig);
               setConfigSuccess(true);
               if (!details?.private) {
                 setTimeout(() => setActiveTab('upload'), 1000);
@@ -316,9 +340,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <div className="mt-4 p-4 bg-stone-100 border border-stone-200 rounded text-stone-600 text-xs font-mono">
                       <p className="font-bold mb-2">Seite öffentlich machen:</p>
                       <p>const PUBLIC_REPO_CONFIG = {'{'}</p>
-                      <p className="pl-4">owner: '{localConfig.owner}',</p>
-                      <p className="pl-4">repo: '{localConfig.repo}',</p>
-                      <p className="pl-4">branch: '{localConfig.branch || 'main'}'</p>
+                      <p className="pl-4">owner: '{localConfig.owner.trim()}',</p>
+                      <p className="pl-4">repo: '{localConfig.repo.trim()}',</p>
+                      <p className="pl-4">branch: '{(localConfig.branch || 'main').trim()}'</p>
                       <p>{'};'}</p>
                       <p className="mt-2 italic text-stone-500">Kopieren Sie dies in App.tsx</p>
                   </div>
