@@ -140,7 +140,7 @@ const App: React.FC = () => {
                     type="password"
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
-                    className="w-full px-4 py-2 border border-stone-300 rounded focus:ring-1 focus:ring-stone-500 focus:border-stone-500 outline-none"
+                    className="w-full px-4 py-2 bg-white text-stone-900 border border-stone-300 rounded focus:ring-1 focus:ring-stone-500 focus:border-stone-500 outline-none placeholder-stone-400"
                     placeholder="Enter password..."
                     autoFocus
                   />
