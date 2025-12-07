@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Artwork, RepoConfig } from '../types';
 import { generateArtworkMetadata, fileToGenerativePart } from '../services/geminiService';
-import { uploadImageToGitHub, updateGalleryManifest, verifyRepoAccess, getRepoDetails } from '../services/githubService';
+import { uploadImageToGitHub, updateGalleryManifest, verifyRepoAccess, getRepoDetails, deleteArtworkFromGitHub } from '../services/githubService';
 
 interface AdminPanelProps {
   artworks: Artwork[];
@@ -39,6 +39,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isVerifying, setIsVerifying] = useState(false);
   const [configSuccess, setConfigSuccess] = useState(false);
   const [repoWarning, setRepoWarning] = useState<string | null>(null);
+
+  // Deletion State
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     // If we don't have a token or repo configured, force the settings tab
@@ -131,6 +134,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         setIsUploading(false);
         setUploadStatus('');
     }
+  };
+
+  const handleDelete = async (art: Artwork) => {
+      if (!window.confirm(`Are you sure you want to delete "${art.title}"? This cannot be undone.`)) {
+          return;
+      }
+      
+      setDeletingId(art.id);
+      try {
+          await deleteArtworkFromGitHub(art, repoConfig);
+          onRefreshData(); // Reload list
+      } catch (err: any) {
+          console.error(err);
+          alert("Failed to delete artwork: " + (err.message || "Unknown error"));
+      } finally {
+          setDeletingId(null);
+      }
   };
 
   const resetForm = () => {
@@ -434,12 +454,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* Existing Artworks List */}
       <div className="mt-16">
           <h3 className="text-xl font-serif text-stone-900 mb-6">Manage Collection ({artworks.length})</h3>
-          <p className="text-stone-500 text-sm mb-4">Note: Deleting items from the UI currently requires manual removal from the JSON/Images on GitHub to fully sync.</p>
+          <p className="text-stone-500 text-sm mb-4">Hover over an image to remove it from the collection.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
               {artworks.map(art => (
                   <div key={art.id} className="group relative border border-stone-200 rounded overflow-hidden">
                       <div className="aspect-square bg-stone-100 relative">
                           <img src={art.imageUrl} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" alt={art.title} />
+                          
+                          {/* Delete Button Overlay */}
+                          <div className="absolute inset-0 bg-stone-900/0 group-hover:bg-stone-900/10 transition-colors flex items-start justify-end p-2">
+                              <button
+                                  onClick={() => handleDelete(art)}
+                                  disabled={!!deletingId}
+                                  className="bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-red-700 transform hover:scale-105 shadow-md disabled:bg-stone-400 disabled:cursor-not-allowed"
+                                  title="Delete Artwork"
+                              >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
+                          </div>
+
+                          {/* Deleting Loading State */}
+                          {deletingId === art.id && (
+                             <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center z-20">
+                                 <svg className="animate-spin h-6 w-6 text-red-600 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                 <span className="text-red-600 font-bold text-xs">DELETING...</span>
+                             </div>
+                          )}
                       </div>
                       <div className="p-3 bg-white">
                           <p className="font-medium text-stone-900 truncate">{art.title}</p>

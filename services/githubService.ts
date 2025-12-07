@@ -40,7 +40,7 @@ export const fetchGalleryFromGitHub = async (config: RepoConfig): Promise<Artwor
         headers: {
           'Authorization': `Bearer ${config.token}`,
           'Accept': 'application/vnd.github.v3+json',
-          'Cache-Control': 'no-cache'
+          'Cache-Control': 'no-store'
         }
       });
       
@@ -63,10 +63,12 @@ export const fetchGalleryFromGitHub = async (config: RepoConfig): Promise<Artwor
 
   // OPTION 2: Raw URL fetch (Public access, subject to caching)
   // This is what regular visitors use.
+  // We use 'no-store' to try and force the browser to check for fresh content,
+  // although GitHub's CDN has its own TTL.
   const url = `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${branch}/gallery.json?t=${Date.now()}`;
   
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) return [];
     const data = await response.json();
     return Array.isArray(data) ? data : [];
@@ -182,5 +184,113 @@ export const updateGalleryManifest = async (
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.message || "Failed to update gallery manifest");
+  }
+};
+
+export const deleteArtworkFromGitHub = async (
+  artwork: Artwork, 
+  config: RepoConfig
+): Promise<void> => {
+  if (!config.token) throw new Error("Authentication required");
+
+  const branch = config.branch || 'main';
+
+  // 1. Remove from gallery.json
+  const manifestPath = 'gallery.json';
+  const manifestUrl = `${BASE_URL}/repos/${config.owner}/${config.repo}/contents/${manifestPath}`;
+
+  // Get current manifest
+  const getManifestResponse = await fetch(manifestUrl, {
+    headers: {
+      'Authorization': `Bearer ${config.token}`,
+      'Accept': 'application/vnd.github.v3+json'
+    }
+  });
+
+  if (!getManifestResponse.ok) {
+    throw new Error("Could not fetch gallery manifest to perform deletion");
+  }
+
+  const manifestData = await getManifestResponse.json();
+  const manifestSha = manifestData.sha;
+  const cleanContent = manifestData.content.replace(/\n/g, '');
+  const jsonString = b64_to_utf8(cleanContent);
+  const currentArtworks: Artwork[] = JSON.parse(jsonString);
+
+  // Filter out the item
+  const updatedArtworks = currentArtworks.filter(a => a.id !== artwork.id);
+
+  // Update manifest
+  const updateManifestResponse = await fetch(manifestUrl, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${config.token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message: `Remove artwork: ${artwork.title}`,
+      content: utf8_to_b64(JSON.stringify(updatedArtworks, null, 2)),
+      sha: manifestSha,
+      branch: branch
+    })
+  });
+
+  if (!updateManifestResponse.ok) {
+     throw new Error("Failed to update gallery list");
+  }
+
+  // 2. Attempt to delete the image file
+  // We need to extract the path relative to the repo root from the full raw URL
+  // Pattern: https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path/to/file}
+  try {
+     // Create a flexible regex to capture the path after the branch
+     // This assumes the branch name doesn't contain slashes, or we rely on the known branch
+     const urlObj = new URL(artwork.imageUrl);
+     const pathParts = urlObj.pathname.split('/');
+     // pathname is /owner/repo/branch/path/to/file
+     // We know owner, repo, branch.
+     // Let's find the index of the branch and take everything after.
+     
+     // Simple heuristic: find 'images/' in the URL
+     const imagePathIndex = pathParts.findIndex(part => part === 'images');
+     
+     if (imagePathIndex !== -1) {
+         const imagePath = pathParts.slice(imagePathIndex).join('/');
+         
+         const imgFileUrl = `${BASE_URL}/repos/${config.owner}/${config.repo}/contents/${imagePath}?ref=${branch}`;
+
+         // Get SHA of image file
+         const getImgResponse = await fetch(imgFileUrl, {
+            headers: {
+                'Authorization': `Bearer ${config.token}`,
+                'Accept': 'application/vnd.github.v3+json'
+            }
+         });
+
+         if (getImgResponse.ok) {
+             const imgData = await getImgResponse.json();
+             const imgSha = imgData.sha;
+
+             // Delete image file
+             await fetch(imgFileUrl, {
+                 method: 'DELETE',
+                 headers: {
+                    'Authorization': `Bearer ${config.token}`,
+                    'Content-Type': 'application/json',
+                 },
+                 body: JSON.stringify({
+                     message: `Delete image file: ${imagePath}`,
+                     sha: imgSha,
+                     branch: branch
+                 })
+             });
+             console.log("Image file deleted successfully");
+         } else {
+             console.warn("Could not find image file to delete (might have been deleted already)");
+         }
+     }
+  } catch (e) {
+      console.warn("Could not delete image file, but removed from gallery list.", e);
+      // We don't throw here because the primary goal (removing from gallery list) succeeded.
   }
 };
